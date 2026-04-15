@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.env
+.DS_Store
+
+# 忽略文件夹及输出
+*.png
+*.csv
+
+orgimg/
+8bit_gray/
+relimg/
+histograms/
+
+# 编辑器配置文件
+.vscode/
+.idea/
