@@ -18,7 +18,12 @@ def get_image_paths(directory):
     """辅助函数：获取指定目录下所有 TIFF 图片路径并按自然顺序排序"""
     if not os.path.exists(directory):
         return []
-    exts = ["*.tif", "*.tiff", "*.TIF", "*.TIFF"]
+    exts = [
+        "*.tif", 
+        # "*.tiff", 
+        # "*.TIF", 
+        # "*.TIFF"
+    ]
     paths = []
     for ext in exts:
         paths.extend(glob.glob(os.path.join(directory, ext)))
