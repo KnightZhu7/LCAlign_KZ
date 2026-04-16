@@ -4,14 +4,14 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import csv
-import re  # 【新增】引入正则表达式模块，用于自然排序
+import re  
 
 # 导入已有的功能模块
 from srgb2grey import convert_to_8bit_gray
 from grey8tiff_auto_align import process as align_process, load_images
 
 def natural_sort_key(s):
-    """【新增】将字符串中的数字提取出来转化为整数进行真实大小比对 (自然排序)"""
+    """将字符串中的数字提取出来转化为整数进行真实大小比对 (自然排序)"""
     return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s)]
 
 def get_image_paths(directory):
@@ -23,7 +23,6 @@ def get_image_paths(directory):
     for ext in exts:
         paths.extend(glob.glob(os.path.join(directory, ext)))
         
-    # 【核心修复】：使用 natural_sort_key 替代普通的字母表排序
     return sorted(paths, key=natural_sort_key)
 
 def main():
@@ -31,14 +30,12 @@ def main():
     print(" 图像转换、对齐与 ROI 灰度动态变化分析管道 ")
     print("="*60)
     
-    # 1. 获取并检查目录
     script_root_dir = os.path.dirname(os.path.abspath(__file__))
     orgimg_dir = os.path.join(script_root_dir, "orgimg")
     interim_dir = os.path.join(script_root_dir, "8bit_gray") 
     aligned_dir = os.path.join(script_root_dir, "relimg")   
     hist_dir = os.path.join(script_root_dir, "histograms")  
     
-    # 最终汇总数据和折线图保存在根目录，方便查找
     csv_output_path = os.path.join(script_root_dir, "roi_averages_trend.csv") 
     trend_plot_path = os.path.join(script_root_dir, "roi_averages_trend_chart.png")
     
@@ -49,7 +46,6 @@ def main():
         
     print(f"\n[检测] 找到 {len(org_paths)} 张原始图片。")
     
-    # 2. 检查 relimg 是否已有对齐图片
     rel_paths = get_image_paths(aligned_dir)
     skip_alignment = False
     
@@ -62,7 +58,6 @@ def main():
     aligned_images = []
     ref_idx = 0
     
-    # 3. 分支处理：跳过 or 重新配准
     if skip_alignment:
         print("\n[加载] 正在读取现有的对齐图片...")
         aligned_images = load_images(rel_paths)
@@ -93,13 +88,13 @@ def main():
         converted_paths = []
         for p in org_paths:
             out_path = os.path.join(interim_dir, "8bit_" + os.path.basename(p))
-            convert_to_8bit_gray(p, out_path) 
+            # 【修复】：补上了刚才漏掉的 channel_mode 参数
+            convert_to_8bit_gray(p, out_path, channel_mode=ch_mode) 
             converted_paths.append(out_path)
             
         print("\n[处理] 开始图像配准...")
         aligned_images, _ = align_process(converted_paths, output_dir=aligned_dir, ref_index=ref_idx)
 
-    # 4. 框选 ROI
     print("="*60)
     print(" 正在打开参照图以供框选 ROI...")
     print(" 【操作说明】画完所有需要的框（如2个）后，按 ESC 结束")
@@ -116,7 +111,6 @@ def main():
         print("\n[警告] 未选择任何有效区域。")
         return
     
-    # 5. 计算、绘图并采集数据
     print("\n[分析] 开始提取数据并生成直方图...")
     os.makedirs(hist_dir, exist_ok=True)
     
@@ -127,6 +121,9 @@ def main():
     for i, img in enumerate(aligned_images):
         orig_name = os.path.basename(org_paths[i])
         
+        # 【修改】：为每张图建立一行数据，先放入编号和图片名
+        current_row_data = [i, orig_name]
+        
         for roi_idx, roi in enumerate(rois):
             x, y, w, h = roi
             crop = img[y:y+h, x:x+w]
@@ -134,11 +131,10 @@ def main():
             hist = cv2.calcHist([crop], [0], None, [256], [0, 256]).flatten()
             avg_gray = np.mean(crop)
             
-            # 记录数据用于 CSV 和趋势折线图
-            csv_data.append([i, orig_name, roi_idx + 1, f"{avg_gray:.4f}"])
+            # 【修改】：将算出的灰度均值按顺序追加到当前行
+            current_row_data.append(f"{avg_gray:.4f}")
             trend_data_series[roi_idx].append(avg_gray)
             
-            # 绘制独立直方图
             plt.figure(figsize=(10, 5))
             c = colors[roi_idx % len(colors)] 
             plt.bar(range(256), hist, color=c, alpha=0.85, width=1.0)
@@ -155,15 +151,19 @@ def main():
             plt.savefig(os.path.join(hist_dir, save_name), dpi=150) 
             plt.close()
             
+        # 遍历完这张图的所有 ROI 后，将一整行数据存入 CSV 列表
+        csv_data.append(current_row_data)
         print(f"  > 已处理: {orig_name}")
 
     # 6. 写入 CSV 文件
     with open(csv_output_path, mode='w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow(['Image_Index', 'Image_Name', 'ROI_Index', 'Average_Grayscale'])
+        
+        # 【修改】：动态生成表头，例如: ['Image_Index', 'Image_Name', 'ROI_1_Avg', 'ROI_2_Avg']
+        header = ['Image_Index', 'Image_Name'] + [f'ROI_{j+1}_Avg' for j in range(len(rois))]
+        writer.writerow(header)
         writer.writerows(csv_data)
         
-    # 7. 绘制平均灰度变化趋势折线图
     print("\n[绘图] 正在生成灰度趋势演变折线图...")
     plt.figure(figsize=(12, 6))
     
@@ -188,7 +188,7 @@ def main():
     print(f"\n============================================================")
     print(f" 全部处理完成！你的成果如下：")
     print(f" 1. 独立直方图文件夹: {hist_dir}")
-    print(f" 2. 定量数据表格: {csv_output_path}")
+    print(f" 2. 定量数据表格: {csv_output_path} (已优化为宽表格式)")
     print(f" 3. 灰度变化趋势图: {trend_plot_path}")
     print(f"============================================================")
 
