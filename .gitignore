@@ -11,6 +11,7 @@ ENV/
 # 忽略文件夹及输出
 *.png
 *.csv
+*.pdf
 
 orgimg/
 8bit_gray/
