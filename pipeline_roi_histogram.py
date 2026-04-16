@@ -74,8 +74,22 @@ def main():
         ref_idx = int(ref_idx_str) if ref_idx_str.isdigit() else 0
         ref_idx = max(0, min(ref_idx, len(org_paths)-1))
         
+        ch_mode = input("\n请选择转换模式 (all: 全通道混合, R: 仅红通道, G: 仅绿通道, B: 仅蓝通道) [默认 all]: ").strip().upper()
+        
+        if ch_mode == 'R':
+            mode_desc = "仅提取 🔴 红 (Red) 通道"
+        elif ch_mode == 'G':
+            mode_desc = "仅提取 🟢 绿 (Green) 通道"
+        elif ch_mode == 'B':
+            mode_desc = "仅提取 🔵 蓝 (Blue) 通道"
+        else:
+            ch_mode = 'ALL'
+            mode_desc = "全通道混合 (心理视觉加权)"
+
+        print(f"  -> 已确认！当前使用模式：【 {mode_desc} 】")
+
         os.makedirs(interim_dir, exist_ok=True)
-        print("[处理] 开始将 sRGB 图片转换为 8-bit 灰度图...")
+        print(f"\n[处理] 开始进行 8-bit 灰度图转换...")
         converted_paths = []
         for p in org_paths:
             out_path = os.path.join(interim_dir, "8bit_" + os.path.basename(p))
