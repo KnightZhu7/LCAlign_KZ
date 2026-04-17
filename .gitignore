@@ -12,6 +12,8 @@ ENV/
 *.png
 *.csv
 *.pdf
+*.tldr
+note.md
 
 orgimg/
 8bit_gray/

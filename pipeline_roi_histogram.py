@@ -134,7 +134,10 @@ def main():
             crop = img[y:y+h, x:x+w]
             
             hist = cv2.calcHist([crop], [0], None, [256], [0, 256]).flatten()
-            avg_gray = np.mean(crop)
+            # 把每个像素先解码到线性, 再算均值
+            crop_f = crop.astype(np.float32) / 255.0
+            crop_lin = np.where(crop_f <= 0.04045, crop_f/12.92, ((crop_f+0.055)/1.055)**2.4)
+            avg_gray = float(crop_lin.mean())  # 现在范围是 0-1, 不再是 0-255
             
             # 【修改】：将算出的灰度均值按顺序追加到当前行
             current_row_data.append(f"{avg_gray:.4f}")
